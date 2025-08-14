@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sliding Puzzle — Clean UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root{
+      --bg: #0f1226;            /* deep night */
+      --card: #15193a;          /* indigo slate */
+      --primary: #6ea8fe;       /* soft blue */
+      --accent: #62f5c6;        /* mint */
+      --text: #e8ecff;          /* near white */
+      --muted: #9aa4c7;         /* cool gray */
+      --danger: #ff6b6b;        /* coral */
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --radius: 18px;
+    --tile-radius: 14px;
+    --gap: 10px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+    margin:0; font-family:Poppins,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;
+    background: radial-gradient(1200px 800px at 80% -10%, rgba(98,245,198,.08), transparent 60%),
+                radial-gradient(900px 700px at 10% 110%, rgba(110,168,254,.10), transparent 60%),
+                var(--bg);
+    color:var(--text);
+    display:grid; place-items:center; padding:18px;
+    }
+    .app{
+    width:min(100%, 980px);
+    display:grid; gap:18px;
+    }
+    .header{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .title{font-size:clamp(20px, 2.8vw, 28px); font-weight:700; letter-spacing:.3px}
+    .subtitle{color:var(--muted); font-size:14px}
+    .panel{
+    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    }
+    .controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+    .chip{
+    display:inline-flex; align-items:center; gap:8px; 
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.03);
+    border-radius:999px; padding:10px 14px; font-weight:600; font-size:14px;
+    }
+    select, button{
+    border:none; outline:none; color:var(--text);
+    background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.04));
+    border:1px solid rgba(255,255,255,.12);
+    padding:10px 14px; border-radius:12px; font-weight:600;
+    backdrop-filter: blur(6px);
+    }
+    button{cursor:pointer; transition:transform .04s ease, box-shadow .2s ease}
+    button:hover{box-shadow:0 8px 18px rgba(110,168,254,.25)}
+    button:active{transform:translateY(1px)}
+    .btn-primary{background:linear-gradient(180deg, rgba(110,168,254,.9), rgba(110,168,254,.7)); color:#0a0f24}
+    .btn-ghost{background:transparent; border:1px dashed rgba(255,255,255,.18); color:var(--muted)}
+    .stat{min-width:110px}
+    .stat strong{display:block; font-size:20px}
+
+    .board-wrap{display:grid; grid-template-columns: 1fr minmax(220px, 280px); gap:18px}
+    @media (max-width: 860px){
+    .board-wrap{grid-template-columns:1fr}
+    }
+
+    .board{
+    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:var(--radius); padding:14px; box-shadow:var(--shadow);
+    display:grid; place-items:center;
+    }
+    .grid{
+      --size:4; /* default, will be updated via JS */
+    width:min(90vw, 560px); aspect-ratio:1/1;
+    display:grid; gap:var(--gap);
+    grid-template-columns: repeat(var(--size), 1fr);
+    grid-template-rows: repeat(var(--size), 1fr);
+    padding:8px; background:rgba(255,255,255,.04); border-radius:calc(var(--radius) - 6px);
+    position:relative;
+    }
+    .tile{
+    display:grid; place-items:center; font-weight:700;
+    background:linear-gradient(145deg, rgba(110,168,254,.95), rgba(98,245,198,.9));
+    color:#0b1124; border-radius:var(--tile-radius); user-select:none;
+    box-shadow: 0 10px 18px rgba(0,0,0,.25), inset 0 -2px 8px rgba(0,0,0,.1);
+    transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease;
+    font-size: clamp(16px, 6vw, 28px);
+    }
+    .tile:hover{transform: translateY(-2px)}
+    .tile:active{transform: translateY(0)}
+    .tile.empty{opacity:0; pointer-events:none}
+    .hint-ring{
+    position:absolute; inset:0; pointer-events:none; border-radius:inherit;
+    border:2px dashed rgba(98,245,198,.16);
+    }
+
+    .sidebar{
+    display:grid; gap:14px;
+    }
+    .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.08); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow);
+    }
+    .card h3{margin:0 0 8px 0; font-size:16px}
+    .list{margin:0; padding-left:18px; color:var(--muted); font-size:14px}
+
+    .toast{position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    background:#0c1230; border:1px solid rgba(255,255,255,.18); color:var(--text);
+    padding:10px 14px; border-radius:999px; box-shadow:var(--shadow); opacity:0; pointer-events:none;
+    transition: opacity .3s ease, transform .3s ease; z-index:50;
+    }
+    .toast.show{opacity:1; transform:translate(-50%, 0)}
+
+    dialog.modal{
+    border:none; border-radius:20px; padding:0; width:min(92vw, 520px);
+    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    color:var(--text); box-shadow:var(--shadow); overflow:hidden;
+    }
+    .modal::backdrop{background:rgba(8,10,24,.6)}
+    .modal header{padding:18px 18px 0 18px}
+    .modal .content{padding:0 18px 18px 18px}
+    .modal footer{display:flex; gap:10px; padding:14px; background:rgba(255,255,255,.04)}
+
+    /* Confetti */
+    .confetti{position:fixed; inset:0; pointer-events:none}
+</style>
+</head>
+<body>
+<div class="app" role="application" aria-label="Sliding puzzle game">
+    <div class="header">
+    <div>
+        <div class="title">🧩 Sliding Puzzle</div>
+        <div class="subtitle">Arrange tiles in order. Click/tap a tile adjacent to the empty space, or use your arrow keys.</div>
+    </div>
+    <div class="panel">
+        <div class="chip stat" title="Moves made"><small class="subtitle">Moves</small><strong id="moves">0</strong></div>
+        <div class="chip stat" title="Elapsed time"><small class="subtitle">Time</small><strong id="time">00:00</strong></div>
+        <div class="chip stat" title="Best score"><small class="subtitle">Best</small><strong id="best">—</strong></div>
+        <div class="controls">
+        <label class="chip" for="size">Size
+            <select id="size" aria-label="Board size">
+            <option value="3">3 × 3</option>
+            <option value="4" selected>4 × 4</option>
+            <option value="5">5 × 5</option>
+            <option value="6">6 × 6</option>
+            </select>
+        </label>
+        <button id="shuffle" class="btn-primary" title="Shuffle">Shuffle</button>
+        <button id="new" class="btn-ghost" title="Start new game">New game</button>
+        <button id="sound" class="btn-ghost" aria-pressed="false" title="Toggle sound">🔊</button>
+        </div>
+    </div>
+    </div>
+
+    <div class="board-wrap">
+    <section class="board" aria-live="polite">
+        <div class="grid" id="grid"><span class="hint-ring"></span></div>
+    </section>
+
+    <aside class="sidebar">
+        <div class="card">
+        <h3>How to play</h3>
+        <ol class="list">
+            <li>Click/tap a tile next to the empty space to move it.</li>
+            <li>Use ⬆️ ⬇️ ⬅️ ➡️ on keyboard for quick moves.</li>
+            <li>Finish when tiles read 1…N with the empty slot last.</li>
+        </ol>
+        </div>
+        <div class="card">
+        <h3>Tips</h3>
+        <ul class="list">
+            <li>Solve row by row; leave the last 2×2 for the end.</li>
+            <li>Stuck? Hit <b>Shuffle</b> to get a new solvable layout.</li>
+        </ul>
+        </div>
+    </aside>
+    </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<canvas class="confetti" id="confetti"></canvas>
+
+<dialog class="modal" id="winModal">
+    <header><h2>🎉 You solved it!</h2></header>
+    <div class="content">
+    <p id="winStats" style="margin-top:0"></p>
+    </div>
+    <footer>
+    <button class="btn-primary" id="playAgain">Play again</button>
+    <button class="btn-ghost" id="closeModal">Close</button>
+    </footer>
+</dialog>
+
+<audio id="pop1" preload="auto">
+    <source src="data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA//////////////////////////////8AAAACcQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" type="audio/mp3">
+</audio>
+
+<script>
+(function(){
+    const grid = document.getElementById('grid');
+    const movesEl = document.getElementById('moves');
+    const timeEl = document.getElementById('time');
+    const bestEl = document.getElementById('best');
+    const sizeSel = document.getElementById('size');
+    const shuffleBtn = document.getElementById('shuffle');
+    const newBtn = document.getElementById('new');
+    const soundBtn = document.getElementById('sound');
+    const toast = document.getElementById('toast');
+    const pop = document.getElementById('pop1');
+    const modal = document.getElementById('winModal');
+    const winStats = document.getElementById('winStats');
+    const playAgain = document.getElementById('playAgain');
+    const closeModal = document.getElementById('closeModal');
+
+    let size = 4;
+    let tiles = [];// numbers 1..n-1 and 0 for empty
+    let moves = 0; let startedAt = 0; let timer = null; let soundOn = false;
+
+    // --- Utils ---
+    const copy = a => a.slice();
+    const shuffle = a => { // Fisher-Yates
+    for (let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+    }
+    const inversions = (arr)=>{
+    const flat = arr.filter(x=>x!==0);
+    let inv=0;
+    for(let i=0;i<flat.length;i++){
+        for(let j=i+1;j<flat.length;j++){
+        if(flat[i]>flat[j]) inv++;
+        }
+    }
+    return inv;
+    }
+    const emptyRowFromBottom = (arr)=>{
+    const idx = arr.indexOf(0);
+      const rowFromTop = Math.floor(idx/size)+1; // 1-indexed
+      return size - rowFromTop + 1; // from bottom
+    }
+    const isSolvable = (arr)=>{
+    const inv = inversions(arr);
+    if(size % 2 === 1){
+        return inv % 2 === 0;
+    }else{
+        const emptyFromBottom = emptyRowFromBottom(arr);
+        if(emptyFromBottom % 2 === 0) return inv % 2 === 1; // even row from bottom -> odd inversions
+        return inv % 2 === 0; // odd row from bottom -> even inversions
+    }
+    }
+    const isSolved = (arr)=>{
+    for(let i=0;i<arr.length-1;i++) if(arr[i]!==i+1) return false;
+    return arr[arr.length-1]===0;
+    }
+
+    const pos = (idx)=>({row: Math.floor(idx/size), col: idx%size});
+    const idxAt = (r,c)=> r*size + c;
+
+    // --- Rendering ---
+    function render(){
+    grid.style.setProperty('--size', size);
+    grid.innerHTML = '<span class="hint-ring"></span>';
+    tiles.forEach((n,i)=>{
+        const tile = document.createElement('div');
+        tile.className = 'tile' + (n===0? ' empty' : '');
+        tile.setAttribute('data-idx', i);
+        if(n!==0) tile.textContent = n;
+        grid.appendChild(tile);
+    });
+    }
+
+    function showToast(msg){
+    toast.textContent = msg; toast.classList.add('show');
+    setTimeout(()=> toast.classList.remove('show'), 1400);
+    }
+
+    // --- Game control ---
+    function startTimer(){
+    startedAt = Date.now();
+    clearInterval(timer);
+    timer = setInterval(()=>{
+        const s = Math.floor((Date.now()-startedAt)/1000);
+        const mm = String(Math.floor(s/60)).padStart(2,'0');
+        const ss = String(s%60).padStart(2,'0');
+        timeEl.textContent = `${mm}:${ss}`;
+    }, 250);
+    }
+
+    function stopTimer(){ clearInterval(timer); timer = null; }
+
+    function resetStats(){ moves = 0; movesEl.textContent = '0'; timeEl.textContent='00:00'; }
+
+    function saveBest(){
+    const key = `puzzle-best-${size}`;
+    const elapsed = Math.floor((Date.now()-startedAt)/1000);
+    const prev = JSON.parse(localStorage.getItem(key) || 'null');
+    const newBest = !prev || moves < prev.moves || (moves===prev.moves && elapsed<prev.time)? {moves, time: elapsed} : prev;
+    localStorage.setItem(key, JSON.stringify(newBest));
+    setBestUI();
+    }
+    function setBestUI(){
+    const key = `puzzle-best-${size}`;
+    const best = JSON.parse(localStorage.getItem(key) || 'null');
+    if(!best){bestEl.textContent='—'; return}
+    const mm = String(Math.floor(best.time/60)).padStart(2,'0');
+    const ss = String(best.time%60).padStart(2,'0');
+    bestEl.textContent = `${best.moves} • ${mm}:${ss}`;
+    }
+
+    function newGame(){
+    size = parseInt(sizeSel.value,10);
+    const n = size*size;
+    do { tiles = [...Array(n).keys()].slice(1).concat(0); shuffle(tiles); }
+    while(!isSolvable(tiles) || isSolved(tiles));
+    document.documentElement.style.setProperty('--gap', size>=6? '6px' : '10px');
+    render(); resetStats(); stopTimer(); startTimer(); setBestUI();
+    showToast(`New ${size}×${size} game`);
+    }
+
+    function shuffleBoard(){
+    const copyTiles = copy(tiles);
+    let tries=0;
+    do{ shuffle(copyTiles); tries++; if(tries>5000) break; } while(!isSolvable(copyTiles) || isSolved(copyTiles));
+    tiles = copy(copyTiles);
+    render(); moves=0; movesEl.textContent='0'; showToast('Shuffled');
+    }
+
+    // --- Moves ---
+    function canMove(index){
+    const empty = tiles.indexOf(0);
+    const p1 = pos(index); const p0 = pos(empty);
+    return (p1.row===p0.row && Math.abs(p1.col-p0.col)===1) || (p1.col===p0.col && Math.abs(p1.row-p0.row)===1);
+    }
+    function swap(i,j){ [tiles[i],tiles[j]]=[tiles[j],tiles[i]]; }
+
+    function move(index, playSound=true){
+    if(!canMove(index)) return;
+    const empty = tiles.indexOf(0);
+    swap(index, empty); moves++; movesEl.textContent = String(moves);
+    if(soundOn){ try{ pop.currentTime=0; pop.play().catch(()=>{}); }catch(e){}
+    }
+    render();
+    if(isSolved(tiles)) win();
+    }
+
+    // Keyboard support
+    function handleKey(e){
+    const empty = tiles.indexOf(0); const {row, col} = pos(empty);
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+    if(e.key==='ArrowUp' && row<size-1) move(idxAt(row+1,col));
+    if(e.key==='ArrowDown' && row>0) move(idxAt(row-1,col));
+    if(e.key==='ArrowLeft' && col<size-1) move(idxAt(row,col+1));
+    if(e.key==='ArrowRight' && col>0) move(idxAt(row,col-1));
+    }
+
+    // Win state
+    function win(){
+    stopTimer();
+    confettiBurst();
+    const seconds = Math.floor((Date.now()-startedAt)/1000);
+    const mm = String(Math.floor(seconds/60)).padStart(2,'0');
+    const ss = String(seconds%60).padStart(2,'0');
+    winStats.textContent = `Solved a ${size}×${size} in ${moves} moves • ${mm}:${ss}`;
+    saveBest();
+    modal.showModal();
+    }
+
+    // Confetti minimal
+    const canvas = document.getElementById('confetti');
+    const ctx = canvas.getContext('2d');
+    let confettiPieces = []; let confettiTimer = null;
+    function resizeCanvas(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+    addEventListener('resize', resizeCanvas); resizeCanvas();
+    function confettiBurst(){
+    confettiPieces = Array.from({length: 140}, ()=>({
+        x: Math.random()*canvas.width,
+        y: -20 - Math.random()*60,
+        s: 4+Math.random()*6,
+        v: 2+Math.random()*3,
+        r: Math.random()*Math.PI,
+        vr: (Math.random()-.5)*0.2,
+    }));
+    if(confettiTimer) cancelAnimationFrame(confettiTimer);
+    animate(); setTimeout(()=>{ confettiPieces = []; }, 1500);
+    }
+    function animate(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    confettiPieces.forEach(p=>{
+        p.y += p.v; p.r += p.vr; if(p.y>canvas.height+20) p.y=-10;
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+        ctx.fillStyle = ['#6ea8fe','#62f5c6','#e8ecff','#ffbe76','#ff6b6b'][Math.floor(Math.random()*5)];
+        ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s);
+        ctx.restore();
+    });
+    if(confettiPieces.length) confettiTimer = requestAnimationFrame(animate);
+    }
+
+    // --- Events ---
+    grid.addEventListener('click', (e)=>{
+    const t = e.target.closest('.tile');
+    if(!t) return; const i = parseInt(t.getAttribute('data-idx'),10);
+    move(i);
+    });
+
+    shuffleBtn.addEventListener('click', shuffleBoard);
+    newBtn.addEventListener('click', newGame);
+    sizeSel.addEventListener('change', newGame);
+    document.addEventListener('keydown', handleKey);
+    soundBtn.addEventListener('click', ()=>{
+    soundOn = !soundOn; soundBtn.setAttribute('aria-pressed', String(soundOn));
+    soundBtn.textContent = soundOn ? '🔊' : '🔇';
+    showToast(soundOn? 'Sound on' : 'Sound off');
+    });
+
+    playAgain.addEventListener('click', ()=>{ modal.close(); newGame(); });
+    closeModal.addEventListener('click', ()=> modal.close());
+
+    // Start
+    newGame();
+})();
+</script>
+</body>
+</html>
